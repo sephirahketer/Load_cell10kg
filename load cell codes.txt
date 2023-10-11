@@ -1,0 +1,230 @@
+Load cell Reading Code-
+
+#include <Arduino.h>
+#include "HX711.h"
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// HX711 circuit wiring
+const int LOADCELL_DOUT_PIN = 2;
+const int LOADCELL_SCK_PIN = 3;
+const int Tare = 7;
+
+HX711 scale;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Set the I2C address and LCD dimensions
+
+void setup() {
+  Wire.begin(); 
+ Wire.beginTransmission(0x27); 
+ pinMode(Tare, INPUT_PULLUP);
+  Serial.begin(31250);
+  Serial.println("HX711 Demo");
+  Serial.println("Initializing the scale");
+
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
+  // LCD setup
+  lcd.init();                      // Initialize the LCD
+  lcd.backlight();                 // Turn on the backlight
+  //lcd.setCursor(0, 0);            // Set the cursor to the first row
+ // lcd.print("Scale Reading:");    // Print a label on the LCD
+
+  // Rest of your setup code
+  // ...
+  Serial.begin(31250);
+  Serial.println("HX711 Demo");
+  Serial.println("Initializing the scale");
+
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
+  Serial.println("Before setting up the scale:");
+  Serial.print("read: \t\t");
+  Serial.println(scale.read());      // print a raw reading from the ADC
+
+  Serial.print("read average: \t\t");
+  Serial.println(scale.read_average(20));   // print the average of 20 readings from the ADC
+
+  Serial.print("get value: \t\t");
+  Serial.println(scale.get_value(5));   // print the average of 5 readings from the ADC minus the tare weight (not set yet)
+
+  Serial.print("get units: \t\t");
+  Serial.println(scale.get_units(5), 1);  // print the average of 5 readings from the ADC minus tare weight (not set) divided
+            // by the SCALE parameter (not set yet)
+            
+  scale.set_scale(-432897.1626);
+  //scale.set_scale(-471.497);                      // this value is obtained by calibrating the scale with known weights; see the README for details
+  scale.tare();               // reset the scale to 0
+
+  Serial.println("After setting up the scale:");
+
+  Serial.print("read: \t\t");
+  Serial.println(scale.read());                 // print a raw reading from the ADC
+
+  Serial.print("read average: \t\t");
+  Serial.println(scale.read_average(20));       // print the average of 20 readings from the ADC
+
+  Serial.print("get value: \t\t");
+  Serial.println(scale.get_value(5));   // print the average of 5 readings from the ADC minus the tare weight, set with tare()
+
+  Serial.print("get units: \t\t");
+  Serial.println(scale.get_units(5), 1);        // print the average of 5 readings from the ADC minus tare weight, divided
+            // by the SCALE parameter set with set_scale
+
+  Serial.println("Readings:");
+
+}
+
+void loop() {
+  // Read data from the HX711
+  float weight = scale.get_units(10); // Read the average of 10 readings
+
+  // Print the weight to Serial Monitor
+  Serial.print("Weight: ");
+  Serial.println(weight, 1);
+
+  // Display the weight on the LCD
+  lcd.setCursor(0, 0);  // Set the cursor to the second row
+  lcd.print("Weight: ");  // Clear any previous characters
+  lcd.setCursor(0, 1);  // Set the cursor to the second row again
+  lcd.print(  weight ); // Print the weight on the LCD
+  lcd.print("  kg  " );
+  delay(500);
+}
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Load Cell Calibration Code-
+
+
+/*
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/arduino-load-cell-hx711/
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files.
+  
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+*/
+
+// Calibrating the load cell
+#include "HX711.h"
+
+// HX711 circuit wiring
+const int LOADCELL_DOUT_PIN = 2;
+const int LOADCELL_SCK_PIN = 3;
+
+HX711 scale;
+
+void setup() {
+  Serial.begin(31250);
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+}
+
+void loop() {
+
+  if (scale.is_ready()) {
+    scale.set_scale();    
+    Serial.println("Tare... remove any weights from the scale.");
+    delay(5000);
+    scale.tare();
+    Serial.println("Tare done...");
+    Serial.print("Place a known weight on the scale...");
+    delay(5000);
+    long reading = scale.get_units(10);
+    Serial.print("Result: ");
+    Serial.println(reading);
+  } 
+  else {
+    Serial.println("HX711 not found.");
+  }
+  delay(1000);
+}
+
+//calibration factor will be the (reading)/(known weight)
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Alternative COde for reading:
+
+
+
+//Arduino Digital Weight Scale HX711 Load Cell Module
+#include <HX711_ADC.h> // https://github.com/olkal/HX711_ADC
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h> // LiquidCrystal_I2C library
+HX711_ADC LoadCell(4, 5); // dt pin, sck pin
+LiquidCrystal_I2C lcd(0x27, 16, 2); // LCD HEX address 0x27
+int taree = 6;
+int a = 0;
+float b = 0;
+
+void setup() {
+  pinMode (taree, INPUT_PULLUP);
+  LoadCell.begin(); // start connection to HX711
+  LoadCell.start(1000); // load cells gets 1000ms of time to stabilize
+
+  /////////////////////////////////////
+  LoadCell.setCalFactor(375); // Calibarate your LOAD CELL with 100g weight, and change the value according to readings
+  /////////////////////////////////////
+  
+  lcd.begin(); // begins connection to the LCD module
+  lcd.backlight(); // turns on the backlight
+  lcd.setCursor(1, 0); // set cursor to first row
+  lcd.print("Digital Scale "); // print out to LCD
+  lcd.setCursor(0, 1); // set cursor to first row
+  lcd.print(" 5KG MAX LOAD "); // print out to LCD
+delay(3000);
+lcd.clear();
+}
+void loop() { 
+  lcd.setCursor(1, 0); // set cursor to first row
+  lcd.print("Digital Scale "); // print out to LCD 
+  LoadCell.update(); // retrieves data from the load cell
+  float i = LoadCell.getData(); // get output value
+ if (i<0)
+ {
+  i = i * (-1);
+  lcd.setCursor(0, 1);
+  lcd.print("-");
+   lcd.setCursor(8, 1);
+  lcd.print("-");
+ }
+ else
+ {
+   lcd.setCursor(0, 1);
+  lcd.print(" ");
+   lcd.setCursor(8, 1);
+  lcd.print(" ");
+ }
+  
+  lcd.setCursor(1, 1); // set cursor to secon row
+  lcd.print(i, 1); // print out the retrieved value to the second row
+  lcd.print("g ");
+  float z = i/28.3495;
+  lcd.setCursor(9, 1);
+  lcd.print(z, 2);
+  lcd.print("oz ");
+
+  if (i>=5000)
+  {
+    i=0;
+  lcd.setCursor(0, 0); // set cursor to secon row
+  lcd.print("  Over Loaded   "); 
+  delay(200);
+  }
+  if (digitalRead (taree) == LOW)
+  {
+    lcd.setCursor(0, 1); // set cursor to secon row
+    lcd.print("   Taring...    ");
+    LoadCell.start(1000);
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
+  }
+}
+
